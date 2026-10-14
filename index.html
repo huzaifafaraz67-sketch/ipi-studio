@@ -1,9 +1,10 @@
+<!-- VERSION: 4.5.0-STABLE -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPI Studio Editor (Hosted)</title>
+    <title>IPI Studio Editor v4.5.0 (Hosted)</title>
     <link rel="manifest" href="manifest.json">
     <style>
         :root {
@@ -30,6 +31,7 @@
         .app-branding { display: flex; align-items: center; gap: 10px; }
         .app-icon { width: 28px; height: 28px; fill: var(--accent); }
         h1 { font-size: 16px; font-weight: 600; color: #fff; }
+        .version-tag { font-size: 11px; background: #007acc; color: #fff; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
 
         .actions { display: flex; gap: 10px; }
         button {
@@ -154,7 +156,8 @@
             <svg class="app-icon" viewBox="0 0 24 24">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
             </svg>
-            <h1>IPI Studio Editor (Hosted)</h1>
+            <h1>IPI Studio Editor</h1>
+            <span class="version-tag">v4.5.0</span>
         </div>
         <div class="actions">
             <button onclick="switchView('editor')" id="btnEditor">Editor</button>
@@ -165,7 +168,7 @@
 
     <div class="workspace">
         <aside>
-            <div class="sidebar-title">Explorer</div>
+            <div class="sidebar-title">Explorer [v4.5.0]</div>
             <ul class="file-tree" id="fileTree">
                 <li class="file-item" onclick="selectFile('deva_guide')">💡 Learn Deva Language</li>
                 <li class="file-item" style="font-weight:bold; cursor:default;">📁 dev/</li>
@@ -202,7 +205,7 @@
     <!-- IPI Selection Modal -->
     <div class="modal-overlay" id="ipiModal">
         <div class="modal">
-            <h3>Select Locked .ipi File</h3>
+            <h3>Select Locked .ipi File [v4.5.0]</h3>
             <p style="font-size:13px; color:#aaa;">Select an encrypted binary .ipi file to uncompile and run.</p>
             <input type="file" id="ipiFileInput" accept=".ipi">
             <div class="modal-buttons">
@@ -224,16 +227,19 @@
     </div>
 
     <script>
+        // Version Log Check
+        console.log("IPI Studio Editor loaded successfully. Active Version: v4.5.0");
+
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed', err));
         }
 
         let files = {
-            'deva_guide': `# Deva Language Learning Guide\n\nWelcome to Deva! Deva is a lightweight configuration language built for IPI packages.\n\n### Syntax Rules:\n- name: "YourAppName"\n- version: "1.0.0"\n- main: "src/i.html"\n- dev-/= "yes"  (Set to "yes" to allow code inspection upon uncompiling. Set to "no" to strictly lock code inspection.)`,
+            'deva_guide': `# Deva Language Learning Guide (v4.5.0)\n\nWelcome to Deva! Deva is a lightweight configuration language built for IPI packages.\n\n### Syntax Rules:\n- name: "YourAppName"\n- version: "1.0.0"\n- main: "src/i.html"\n- dev-/= "yes"  (Set to "yes" to allow code inspection upon uncompiling. Set to "no" to strictly lock code inspection.)`,
             'dev/.dev': `name: "MySecureIpiApp"\nversion: "1.0.0"\nmain: "src/i.html"\nauthor: "Developer"\ndev-/= "no"`,
-            'src/i.html': `<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <link rel="stylesheet" href="s.css">\n</head>\n<body>\n    <h1>Hello from Deva Locked App!</h1>\n    <button id="clickBtn">Test App</button>\n    <script src="s.js"><\/script>\n</body>\n</html>`,
+            'src/i.html': `<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <link rel="stylesheet" href="s.css">\n</head>\n<body>\n    <h1>Hello from Deva Locked App [v4.5.0]!</h1>\n    <button id="clickBtn">Test App</button>\n    <script src="s.js"><\/script>\n</body>\n</html>`,
             'src/s.css': `body {\n    background: #0f172a;\n    color: #f8fafc;\n    font-family: system-ui, sans-serif;\n    text-align: center;\n    padding-top: 60px;\n}\nbutton {\n    padding: 10px 20px;\n    background: #38bdf8;\n    border: none;\n    border-radius: 6px;\n    font-weight: bold;\n    cursor: pointer;\n}`,
-            'src/s.js': `document.getElementById('clickBtn').addEventListener('click', () => {\n    alert('Deva secure application working perfectly!');\n});`,
+            'src/s.js': `document.getElementById('clickBtn').addEventListener('click', () => {\n    alert('Deva secure application (v4.5.0) working perfectly!');\n});`,
             'icon/icon.svg': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#38bdf8">\n    <circle cx="12" cy="12" r="10"/>\n</svg>`
         };
 
@@ -373,10 +379,10 @@
                 return;
             }
 
-            let appName = "IPI App";
+            let appName = "IPI_App";
             if (currentLoadedBundle['dev/.dev']) {
                 const match = currentLoadedBundle['dev/.dev'].match(/name:\s*["']([^"']+)["']/);
-                if (match) appName = match[1];
+                if (match) appName = match[1].replace(/\s+/g, '_');
             }
 
             let htmlContent = currentLoadedBundle['src/i.html'] || '';
@@ -384,18 +390,19 @@
             const jsContent = currentLoadedBundle['src/s.js'] || '';
             const iconSvg = currentLoadedBundle['icon/icon.svg'] || '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#38bdf8"><circle cx="12" cy="12" r="10"/></svg>';
 
-            htmlContent = htmlContent.replace('<link rel="stylesheet" href="s.css">', `<style>${cssContent}</style>`);
-            htmlContent = htmlContent.replace('<script src="s.js"><\/script>', `<script>${jsContent}<\/script>`);
+            const standalonePackage = `<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <title>${appName}</title>\n    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,${btoa(iconSvg)}">\n    <style>${cssContent}</style>\n</head>\n<body>\n    ${htmlContent.replace(/<!DOCTYPE html>[\s\S]*?<body>/, '').replace(/<\/body>[\s\S]*<\/html>/, '')}\n    <script>${jsContent}<\/script>\n</body>\n</html>`;
 
-            const blob = new Blob([htmlContent], { type: 'text/html' });
-            const appUrl = URL.createObjectURL(blob);
-            
-            const newWindow = window.open(appUrl, '_blank');
-            if (newWindow) {
-                alert(`"${appName}" is ready!\n\nTo install it live on your device:\n1. Click your browser menu (three dots ⋯ at the top right).\n2. Select "Install App" or "Install page as app".`);
-            } else {
-                alert('Pop-up blocked! Please allow pop-ups to open your app.');
-            }
+            const blob = new Blob([standalonePackage], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${appName}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            alert(`"${appName}" has been successfully compiled and installed! \n\nCheck your downloads folder—you can double-click "${appName}.html" anytime to run your app offline like a desktop app.`);
         }
     </script>
 </body>
