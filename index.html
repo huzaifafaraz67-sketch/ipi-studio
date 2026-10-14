@@ -176,8 +176,6 @@
                 <li class="file-item folder" onclick="selectFile('src/s.js')">📜 s.js</li>
                 <li class="file-item" style="font-weight:bold; cursor:default;">📁 icon/</li>
                 <li class="file-item folder" onclick="selectFile('icon/icon.svg')">🖼️ icon.svg</li>
-                <li class="file-item" onclick="selectFile('manifest.json')">📦 manifest.json</li>
-                <li class="file-item" onclick="selectFile('sw.js')">⚡ sw.js</li>
             </ul>
         </aside>
 
@@ -236,9 +234,7 @@
             'src/i.html': `<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <link rel="stylesheet" href="s.css">\n</head>\n<body>\n    <h1>Hello from Deva Locked App!</h1>\n    <button id="clickBtn">Test App</button>\n    <script src="s.js"><\/script>\n</body>\n</html>`,
             'src/s.css': `body {\n    background: #0f172a;\n    color: #f8fafc;\n    font-family: system-ui, sans-serif;\n    text-align: center;\n    padding-top: 60px;\n}\nbutton {\n    padding: 10px 20px;\n    background: #38bdf8;\n    border: none;\n    border-radius: 6px;\n    font-weight: bold;\n    cursor: pointer;\n}`,
             'src/s.js': `document.getElementById('clickBtn').addEventListener('click', () => {\n    alert('Deva secure application working perfectly!');\n});`,
-            'icon/icon.svg': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#38bdf8">\n    <circle cx="12" cy="12" r="10"/>\n</svg>`,
-            'manifest.json': `{\n  "name": "IPI App",\n  "short_name": "IPI",\n  "start_url": "./",\n  "display": "standalone",\n  "background_color": "#1e1e1e",\n  "theme_color": "#007acc",\n  "icons": [\n    {\n      "src": "icon/icon.svg",\n      "sizes": "any",\n      "type": "image/svg+xml"\n    }\n  ]\n}`,
-            'sw.js': `self.addEventListener('install', (e) => {\n  e.waitUntil(caches.open('ipi-cache-v1').then(cache => cache.addAll(['./'])));\n});\nself.addEventListener('fetch', (e) => {\n  e.respondWith(caches.match(e.request).then(response => response || fetch(e.request)));\n});`
+            'icon/icon.svg': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#38bdf8">\n    <circle cx="12" cy="12" r="10"/>\n</svg>`
         };
 
         let currentFile = 'deva_guide';
@@ -377,25 +373,28 @@
                 return;
             }
 
-            // Extract the main html, css, and js from the uncompiled bundle
+            let appName = "IPI App";
+            if (currentLoadedBundle['dev/.dev']) {
+                const match = currentLoadedBundle['dev/.dev'].match(/name:\s*["']([^"']+)["']/);
+                if (match) appName = match[1];
+            }
+
             let htmlContent = currentLoadedBundle['src/i.html'] || '';
             const cssContent = currentLoadedBundle['src/s.css'] || '';
             const jsContent = currentLoadedBundle['src/s.js'] || '';
-            const iconSvg = currentLoadedBundle['icon/icon.svg'] || '';
+            const iconSvg = currentLoadedBundle['icon/icon.svg'] || '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#38bdf8"><circle cx="12" cy="12" r="10"/></svg>';
 
-            // Inject CSS and JS into a standalone package blob
             htmlContent = htmlContent.replace('<link rel="stylesheet" href="s.css">', `<style>${cssContent}</style>`);
             htmlContent = htmlContent.replace('<script src="s.js"><\/script>', `<script>${jsContent}<\/script>`);
 
             const blob = new Blob([htmlContent], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-
-            // Open the uncompiled application in a new live browser tab/window so it runs independently
-            const newWindow = window.open(url, '_blank');
+            const appUrl = URL.createObjectURL(blob);
+            
+            const newWindow = window.open(appUrl, '_blank');
             if (newWindow) {
-                alert('App successfully uncompiled and launched live in a new window! You can now bookmark it or save it to your home screen.');
+                alert(`"${appName}" is ready!\n\nTo install it live on your device:\n1. Click your browser menu (three dots ⋯ at the top right).\n2. Select "Install App" or "Install page as app".`);
             } else {
-                alert('Pop-up blocked! Please allow pop-ups to launch and install the app live.');
+                alert('Pop-up blocked! Please allow pop-ups to open your app.');
             }
         }
     </script>
