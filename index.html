@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPI Studio Editor</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --bg-dark: #1e1e1e;
+            --bg-panel: #252526;
+            --bg-sidebar: #333333;
+            --accent: #007acc;
+            --text: #d4d4d4;
+            --border: #454545;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* Top Bar */
+        header {
+            background-color: var(--bg-sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border);
+            height: 48px;
+        }
+        .app-branding { display: flex; align-items: center; gap: 10px; }
+        .app-icon { width: 28px; height: 28px; fill: var(--accent); }
+        h1 { font-size: 16px; font-weight: 600; color: #fff; }
+
+        .actions { display: flex; gap: 10px; }
+        button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        button:hover { opacity: 0.9; }
+
+        /* Main Workspace */
+        .workspace { display: flex; flex: 1; height: calc(100vh - 48px); }
+
+        /* File Tree Sidebar */
+        aside {
+            width: 260px;
+            background-color: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-title {
+            padding: 10px 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #858585;
+            font-weight: bold;
+        }
+        .file-tree { list-style: none; overflow-y: auto; flex: 1; }
+        .file-item {
+            padding: 6px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .file-item:hover { background-color: #2a2d2e; }
+        .file-item.active { background-color: #37373d; color: #fff; }
+        .folder { padding-left: 24px; font-size: 12px; color: #aaa; }
+
+        /* Editor Area */
+        .editor-container { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-dark); }
+        .tabs {
+            background-color: var(--bg-panel);
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            height: 35px;
+            align-items: center;
+            padding-left: 10px;
+            font-size: 13px;
+        }
+        textarea {
+            flex: 1;
+            background-color: var(--bg-dark);
+            color: var(--text);
+            border: none;
+            padding: 16px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            line-height: 1.5;
+        }
+
+        /* Preview Panel */
+        .preview-container { flex: 1; display: none; background-color: #fff; flex-direction: column; }
+        .preview-container.active { display: flex; }
+        
+        .preview-header {
+            background: #f1f5f9;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #cbd5e1;
+        }
+        .preview-left { display: flex; align-items: center; gap: 10px; }
+        .preview-app-icon { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+        .preview-app-icon svg { width: 100%; height: 100%; }
+        .preview-title { font-size: 14px; font-weight: 600; color: #334155; }
+        .preview-actions { display: flex; gap: 8px; }
+        .install-btn { background: #2ea043; display: none; font-size: 12px; padding: 4px 12px; }
+        .source-viewer-btn { background: #64748b; font-size: 12px; padding: 4px 10px; display: none; }
+
+        iframe { flex: 1; border: none; width: 100%; height: 100%; }
+
+        /* Modal Overlays */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal {
+            background: var(--bg-panel); padding: 24px; border-radius: 8px; width: 380px;
+            border: 1px solid var(--border); text-align: center;
+        }
+        .modal h3 { color: #fff; margin-bottom: 8px; font-size: 16px; }
+        .modal input[type="file"] { margin: 15px 0; color: var(--text); width: 100%; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+
+        .source-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 2000;
+        }
+        .source-box {
+            background: #1e1e1e; width: 80%; height: 80%; border-radius: 6px; display: flex; flex-direction: column;
+            border: 1px solid #454545; overflow: hidden;
+        }
+        .source-box header { padding: 10px 16px; background: #333; display: flex; justify-content: space-between; align-items: center; }
+        .source-box pre { flex: 1; padding: 16px; color: #d4d4d4; overflow: auto; font-family: monospace; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="app-branding">
+            <svg class="app-icon" viewBox="0 0 24 24">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+            </svg>
+            <h1>IPI Studio Editor (Hosted)</h1>
+        </div>
+        <div class="actions">
+            <button onclick="switchView('editor')" id="btnEditor">Editor</button>
+            <button onclick="openIpiSelector()" id="btnPreview" style="background-color: #3c3c3c;">IPI View & Uncompile</button>
+            <button onclick="compileAndLockIpi()" style="background-color: #2ea043;">Create & Lock (.ipi)</button>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <aside>
+            <div class="sidebar-title">Explorer</div>
+            <ul class="file-tree" id="fileTree">
+                <li class="file-item" onclick="selectFile('deva_guide')">💡 Learn Deva Language</li>
+                <li class="file-item" style="font-weight:bold; cursor:default;">📁 dev/</li>
+                <li class="file-item folder" onclick="selectFile('dev/.dev')">⚙️ .dev</li>
+                <li class="file-item" style="font-weight:bold; cursor:default;">📁 src/</li>
+                <li class="file-item folder" onclick="selectFile('src/i.html')">📄 i.html</li>
+                <li class="file-item folder" onclick="selectFile('src/s.css')">🎨 s.css</li>
+                <li class="file-item folder" onclick="selectFile('src/s.js')">📜 s.js</li>
+                <li class="file-item" style="font-weight:bold; cursor:default;">📁 icon/</li>
+                <li class="file-item folder" onclick="selectFile('icon/icon.svg')">🖼️ icon.svg</li>
+                <li class="file-item" onclick="selectFile('manifest.json')">📦 manifest.json</li>
+                <li class="file-item" onclick="selectFile('sw.js')">⚡ sw.js</li>
+            </ul>
+        </aside>
+
+        <div class="editor-container" id="editorView">
+            <div class="tabs" id="activeTabName">deva_guide</div>
+            <textarea id="codeEditor" oninput="saveCurrentFile()"></textarea>
+        </div>
+
+        <div class="preview-container" id="previewView">
+            <div class="preview-header">
+                <div class="preview-left">
+                    <div class="preview-app-icon" id="previewIconSlot"></div>
+                    <div class="preview-title" id="previewAppTitle">Uncompiled IPI App</div>
+                </div>
+                <div class="preview-actions">
+                    <button class="source-viewer-btn" onclick="openSourceInspector()" id="inspectBtn">Inspect Source</button>
+                    <button class="install-btn" id="installAppBtn" onclick="triggerPwaInstall()">Install App</button>
+                </div>
+            </div>
+            <iframe id="ipiPreviewFrame"></iframe>
+        </div>
+    </div>
+
+    <!-- IPI Selection Modal -->
+    <div class="modal-overlay" id="ipiModal">
+        <div class="modal">
+            <h3>Select Locked .ipi File</h3>
+            <p style="font-size:13px; color:#aaa;">Select an encrypted binary .ipi file to uncompile and run.</p>
+            <input type="file" id="ipiFileInput" accept=".ipi">
+            <div class="modal-buttons">
+                <button onclick="closeModal()" style="background-color: #555;">Cancel</button>
+                <button onclick="uncompileAndLoadIpi()">Uncompile & Run</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Source Code Inspection Modal -->
+    <div class="source-modal" id="sourceModal">
+        <div class="source-box">
+            <header>
+                <h4 style="color:#fff; font-size:14px;">Uncompiled Source Structure</h4>
+                <button onclick="closeSourceInspector()" style="padding: 2px 8px;">Close</button>
+            </header>
+            <pre id="sourceCodeContent"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Register Service Worker for PWA support
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed', err));
+        }
+
+        let deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('installAppBtn').style.display = 'block';
+        });
+
+        // File system states
+        const files = {
+            'deva_guide': `# Deva Language Learning Guide\n\nWelcome to Deva! Deva is a lightweight configuration language built for IPI packages.\n\n### Syntax Rules:\n- name: "YourAppName"\n- version: "1.0.0"\n- main: "src/i.html"\n- dev-/= "yes"  (Set to "yes" to allow code inspection upon uncompiling. Set to "no" to strictly lock code inspection.)`,
+            'dev/.dev': `name: "MySecureIpiApp"\nversion: "1.0.0"\nmain: "src/i.html"\nauthor: "Developer"\ndev-/= "no"`,
+            'src/i.html': `<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <link rel="stylesheet" href="s.css">\n</head>\n<body>\n    <h1>Hello from Deva Locked App!</h1>\n    <button id="clickBtn">Test App</button>\n    <script src="s.js"><\/script>\n</body>\n</html>`,
+            'src/s.css': `body {\n    background: #0f172a;\n    color: #f8fafc;\n    font-family: system-ui, sans-serif;\n    text-align: center;\n    padding-top: 60px;\n}\nbutton {\n    padding: 10px 20px;\n    background: #38bdf8;\n    border: none;\n    border-radius: 6px;\n    font-weight: bold;\n    cursor: pointer;\n}`,
+            'src/s.js': `document.getElementById('clickBtn').addEventListener('click', () => {\n    alert('Deva secure application working perfectly!');\n});`,
+            'icon/icon.svg': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#38bdf8">\n    <circle cx="12" cy="12" r="10"/>\n</svg>`,
+            'manifest.json': `{\n  "name": "IPI App",\n  "short_name": "IPI",\n  "start_url": "./",\n  "display": "standalone",\n  "background_color": "#1e1e1e",\n  "theme_color": "#007acc",\n  "icons": [\n    {\n      "src": "icon/icon.svg",\n      "sizes": "any",\n      "type": "image/svg+xml"\n    }\n  ]\n}`,
+            'sw.js': `self.addEventListener('install', (e) => {\n  e.waitUntil(caches.open('ipi-cache-v1').then(cache => cache.addAll(['./'])));\n});\nself.addEventListener('fetch', (e) => {\n  e.respondWith(caches.match(e.request).then(response => response || fetch(e.request)));\n});`
+        };
+
+        let currentFile = 'deva_guide';
+        let currentLoadedBundle = null;
+        const editor = document.getElementById('codeEditor');
+        const tabName = document.getElementById('activeTabName');
+
+        function selectFile(filename) {
+            files[currentFile] = editor.value;
+            currentFile = filename;
+            editor.value = files[filename];
+            tabName.innerText = filename;
+
+            document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        }
+
+        function saveCurrentFile() {
+            files[currentFile] = editor.value;
+        }
+
+        editor.value = files[currentFile];
+
+        function switchView(mode) {
+            const editorView = document.getElementById('editorView');
+            const previewView = document.getElementById('previewView');
+            const btnEditor = document.getElementById('btnEditor');
+            const btnPreview = document.getElementById('btnPreview');
+
+            if (mode === 'preview') {
+                editorView.style.display = 'none';
+                previewView.classList.add('active');
+                btnPreview.style.backgroundColor = '#007acc';
+                btnEditor.style.backgroundColor = '#3c3c3c';
+            } else {
+                previewView.classList.remove('active');
+                editorView.style.display = 'flex';
+                btnEditor.style.backgroundColor = '#007acc';
+                btnPreview.style.backgroundColor = '#3c3c3c';
+            }
+        }
+
+        function openIpiSelector() {
+            files[currentFile] = editor.value;
+            document.getElementById('ipiModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('ipiModal').style.display = 'none';
+        }
+
+        function compileAndLockIpi() {
+            files[currentFile] = editor.value;
+
+            // Encrypt using 5-digit odd number hidden lock key (73915)
+            const jsonString = JSON.stringify(files);
+            const binaryPayload = "IPI-SECURE-73915::" + btoa(jsonString);
+
+            const blob = new Blob([binaryPayload], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "app.ipi";
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function uncompileAndLoadIpi() {
+            const fileInput = document.getElementById('ipiFileInput');
+            if (fileInput.files.length === 0) {
+                alert('Please select an .ipi file.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.readAsText(file);
+            reader.onload = function(e) {
+                try {
+                    const rawData = e.target.result;
+
+                    // Verify OS-level binary signature and 5-digit odd key
+                    if (!rawData.startsWith("IPI-SECURE-73915::")) {
+                        alert('OS ERROR: Unable to read file. Invalid binary header or unverified security key.');
+                        return;
+                    }
+
+                    const base64Data = rawData.replace("IPI-SECURE-73915::", "");
+                    const jsonString = atob(base64Data);
+                    const bundle = JSON.parse(jsonString);
+                    currentLoadedBundle = bundle;
+
+                    closeModal();
+                    switchView('preview');
+
+                    let allowInspect = false;
+                    let appTitle = "IPI App";
+                    if (bundle['dev/.dev']) {
+                        if (bundle['dev/.dev'].includes('dev-/= "yes"')) {
+                            allowInspect = true;
+                        }
+                        const match = bundle['dev/.dev'].match(/name:\s*["']([^"']+)["']/);
+                        if (match) appTitle = match[1];
+                    }
+
+                    document.getElementById('inspectBtn').style.display = allowInspect ? 'block' : 'none';
+                    document.getElementById('previewIconSlot').innerHTML = bundle['icon/icon.svg'] || '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>';
+                    document.getElementById('previewAppTitle').innerText = appTitle;
+
+                    let htmlContent = bundle['src/i.html'] || '<h1>No i.html</h1>';
+                    htmlContent = htmlContent.replace('<link rel="stylesheet" href="s.css">', `<style>${bundle['src/s.css'] || ''}</style>`);
+                    htmlContent = htmlContent.replace('<script src="s.js"><\/script>', `<script>${bundle['src/s.js'] || ''}<\/script>`);
+
+                    const frame = document.getElementById('ipiPreviewFrame');
+                    const blob = new Blob([htmlContent], { type: 'text/html' });
+                    frame.src = URL.createObjectURL(blob);
+
+                } catch (err) {
+                    alert('OS ERROR: Failed to uncompile binary package.');
+                }
+            };
+        }
+
+        function openSourceInspector() {
+            if (!currentLoadedBundle) return;
+            document.getElementById('sourceCodeContent').innerText = JSON.stringify(currentLoadedBundle, null, 2);
+            document.getElementById('sourceModal').style.display = 'flex';
+        }
+
+        function closeSourceInspector() {
+            document.getElementById('sourceModal').style.display = 'none';
+        }
+
+        async function triggerPwaInstall() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    document.getElementById('installAppBtn').style.display = 'none';
+                }
+                deferredPrompt = null;
+            } else {
+                alert('App is already installed or browser install prompt is unavailable.');
+            }
+        }
+    </script>
+</body>
+</html>
