@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPI Studio Editor</title>
+    <title>IPI Studio Editor (Hosted)</title>
     <link rel="manifest" href="manifest.json">
     <style>
         :root {
@@ -117,7 +117,7 @@
         .preview-app-icon svg { width: 100%; height: 100%; }
         .preview-title { font-size: 14px; font-weight: 600; color: #334155; }
         .preview-actions { display: flex; gap: 8px; }
-        .install-btn { background: #2ea043; display: none; font-size: 12px; padding: 4px 12px; }
+        .install-btn { background: #2ea043; font-size: 12px; padding: 4px 12px; display: inline-block; }
         .source-viewer-btn { background: #64748b; font-size: 12px; padding: 4px 10px; display: none; }
 
         iframe { flex: 1; border: none; width: 100%; height: 100%; }
@@ -194,7 +194,7 @@
                 </div>
                 <div class="preview-actions">
                     <button class="source-viewer-btn" onclick="openSourceInspector()" id="inspectBtn">Inspect Source</button>
-                    <button class="install-btn" id="installAppBtn" onclick="triggerPwaInstall()">Install App</button>
+                    <button class="install-btn" id="installAppBtn" onclick="installUncompiledApp()">Install App</button>
                 </div>
             </div>
             <iframe id="ipiPreviewFrame"></iframe>
@@ -226,20 +226,11 @@
     </div>
 
     <script>
-        // Register Service Worker for PWA support
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration failed', err));
         }
 
-        let deferredPrompt = null;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            document.getElementById('installAppBtn').style.display = 'block';
-        });
-
-        // File system states
-        const files = {
+        let files = {
             'deva_guide': `# Deva Language Learning Guide\n\nWelcome to Deva! Deva is a lightweight configuration language built for IPI packages.\n\n### Syntax Rules:\n- name: "YourAppName"\n- version: "1.0.0"\n- main: "src/i.html"\n- dev-/= "yes"  (Set to "yes" to allow code inspection upon uncompiling. Set to "no" to strictly lock code inspection.)`,
             'dev/.dev': `name: "MySecureIpiApp"\nversion: "1.0.0"\nmain: "src/i.html"\nauthor: "Developer"\ndev-/= "no"`,
             'src/i.html': `<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <link rel="stylesheet" href="s.css">\n</head>\n<body>\n    <h1>Hello from Deva Locked App!</h1>\n    <button id="clickBtn">Test App</button>\n    <script src="s.js"><\/script>\n</body>\n</html>`,
@@ -302,7 +293,6 @@
         function compileAndLockIpi() {
             files[currentFile] = editor.value;
 
-            // Encrypt using 5-digit odd number hidden lock key (73915)
             const jsonString = JSON.stringify(files);
             const binaryPayload = "IPI-SECURE-73915::" + btoa(jsonString);
 
@@ -330,7 +320,6 @@
                 try {
                     const rawData = e.target.result;
 
-                    // Verify OS-level binary signature and 5-digit odd key
                     if (!rawData.startsWith("IPI-SECURE-73915::")) {
                         alert('OS ERROR: Unable to read file. Invalid binary header or unverified security key.');
                         return;
@@ -382,16 +371,31 @@
             document.getElementById('sourceModal').style.display = 'none';
         }
 
-        async function triggerPwaInstall() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    document.getElementById('installAppBtn').style.display = 'none';
-                }
-                deferredPrompt = null;
+        function installUncompiledApp() {
+            if (!currentLoadedBundle) {
+                alert('No uncompiled app loaded to install.');
+                return;
+            }
+
+            // Extract the main html, css, and js from the uncompiled bundle
+            let htmlContent = currentLoadedBundle['src/i.html'] || '';
+            const cssContent = currentLoadedBundle['src/s.css'] || '';
+            const jsContent = currentLoadedBundle['src/s.js'] || '';
+            const iconSvg = currentLoadedBundle['icon/icon.svg'] || '';
+
+            // Inject CSS and JS into a standalone package blob
+            htmlContent = htmlContent.replace('<link rel="stylesheet" href="s.css">', `<style>${cssContent}</style>`);
+            htmlContent = htmlContent.replace('<script src="s.js"><\/script>', `<script>${jsContent}<\/script>`);
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+
+            // Open the uncompiled application in a new live browser tab/window so it runs independently
+            const newWindow = window.open(url, '_blank');
+            if (newWindow) {
+                alert('App successfully uncompiled and launched live in a new window! You can now bookmark it or save it to your home screen.');
             } else {
-                alert('App is already installed or browser install prompt is unavailable.');
+                alert('Pop-up blocked! Please allow pop-ups to launch and install the app live.');
             }
         }
     </script>
